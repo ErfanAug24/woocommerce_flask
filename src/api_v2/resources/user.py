@@ -3,7 +3,7 @@ from src.api_v2.models.user import UserModel
 from flask_jwt_extended import (create_access_token,
                                 create_refresh_token,
                                 jwt_required,
-                                get_jwt_identity, get_jti)
+                                get_jti)
 from flask_restful import Resource, reqparse
 from src.api_v2.models.blacklist import User_BlackList
 
@@ -21,12 +21,11 @@ _user_parsar.add_argument('password', type=str,
 
 class User_API(Resource):
 
-    @jwt_required()
-    def get(self, username):
+    def get(self, username: str):
         user = UserModel.find_by_username(username)
         return user.json() if user else {'message': 'store not found !'}, 404
 
-    def post(self, username):
+    def post(self, username: str):
         user = UserModel.find_by_username(username)
         if user:
             return {'message': 'this user is already exist !'}, 400
@@ -36,10 +35,7 @@ class User_API(Resource):
         return user.json(), 201
 
     @jwt_required()
-    def delete(self, username):
-        claims = get_jwt_identity()
-        if not claims['is_admin']:
-            return {'message': 'Admin privilege required'}, 401
+    def delete(self, username: str):
         user = UserModel.find_by_username(username)
         if user:
             user.delete_from_db()

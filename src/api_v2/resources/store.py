@@ -14,11 +14,11 @@ class Store_API(Resource):
                         required=True,
                         help='for each store you need an user_id')
 
-    def get(self, name):
+    def get(self, name: str):
         store = StoreModel.find_by_name(name)
         return store.json() if store else {'message': 'store not found !'}, 404
 
-    def post(self, name):
+    def post(self, name: str):
         store = StoreModel.find_by_name(name)
         if store:
             store.quantity += 1
@@ -29,7 +29,7 @@ class Store_API(Resource):
         store.save_to_db()
         return store.json(), 201
 
-    def delete(self, name):
+    def delete(self, name: str):
         store = StoreModel.find_by_name(name)
         if store:
             store.delete_from_db()
