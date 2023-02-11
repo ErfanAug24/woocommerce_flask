@@ -1,54 +1,65 @@
 from werkzeug.security import check_password_hash, generate_password_hash
 from src.api_v2.models.user import UserModel
+from src.api_v2.models.blacklist import User_BlackList
 from flask_jwt_extended import (create_access_token,
                                 create_refresh_token,
                                 jwt_required,
-                                get_jti)
+                                get_jwt,
+                                get_jwt_identity)
 from flask_restful import Resource, reqparse
-from src.api_v2.models.blacklist import User_BlackList
+
+BLACK_ERROR = 'this user field {} is required'
+ITEM_NOT_FOUND = 'user not found !'
+REGISTERED_ITEM = 'This user is already in database'
+ITEM_DELETED = 'user has been deleted!'
 
 _user_parsar = reqparse.RequestParser()
 _user_parsar.add_argument('username', type=str,
                           required=True,
-                          help='this field is required')
+                          help=BLACK_ERROR.format('username'))
 _user_parsar.add_argument('email', type=str,
                           required=True,
-                          help='this field is required')
+                          help=BLACK_ERROR.format('email'))
 _user_parsar.add_argument('password', type=str,
                           required=True,
-                          help='this field is required')
+                          help=BLACK_ERROR.format('password'))
 
 
 class User_API(Resource):
-
-    def get(self, username: str):
+    @classmethod
+    @jwt_required()
+    def get(cls, username: str):
         user = UserModel.find_by_username(username)
-        return user.json() if user else {'message': 'store not found !'}, 404
+        return user.json() if user else {'message': ITEM_NOT_FOUND}, 404
 
-    def post(self, username: str):
+    # @jwt_required(fresh=True)
+    @classmethod
+    def post(cls, username: str):
         user = UserModel.find_by_username(username)
         if user:
-            return {'message': 'this user is already exist !'}, 400
+            return {'message': REGISTERED_ITEM}, 400
         data = _user_parsar.parse_args()
         user = UserModel(username, data.get('email'), generate_password_hash(data.get('password')))
         user.save_to_db()
         return user.json(), 201
 
+    @classmethod
     @jwt_required()
-    def delete(self, username: str):
+    def delete(cls, username: str):
         user = UserModel.find_by_username(username)
         if user:
             user.delete_from_db()
             return user.json()
-        return {'message': 'store not found !'}, 404
+        return {'message': ITEM_DELETED}, 404
 
-    def put(self, username):
+    @classmethod
+    def put(cls, username):
         pass
 
 
 class UserList(Resource):
-
-    def get(self):
+    @classmethod
+    def get(cls):
         return {'users': list(map(lambda x: x.json(), UserModel.query.all()))}
 
 
@@ -77,16 +88,19 @@ class UserLogin(Resource):
 
 
 class TokenRefresh(Resource):
+    @classmethod
     @jwt_required(refresh=True)
-    def post(self):
+    def post(cls):
         current_user = get_jwt_identity()
         new_token = create_access_token(identity=current_user, fresh=False)
         return {'access_token': new_token}, 200
 
 
 class UserLogout(Resource):
-    @jwt_required()
-    def post(self):
-        jti = get_jti()
-        jti.save_to_db()
+    @classmethod
+    @jwt_required(refresh=True)
+    def post(cls):
+        jti = get_jwt()["jti"]
+        token_in_blacklist = User_BlackList(jti, "Expired Token Due To logging out!")
+        token_in_blacklist.save_to_db()
         return {'message': 'successfully logged out'}
