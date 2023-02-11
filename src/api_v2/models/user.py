@@ -26,7 +26,7 @@ class UserModel(db.Model):
                 'created_at': "{}".format(self.created_at),
                 'selected_stores': [x.json() for x in self.stores.all()]}
 
-    @classmethod
+    @classmethod  
     def find_by_username(cls, username: str) -> "UserModel":
         return cls.query.filter_by(username=username).first()
 
